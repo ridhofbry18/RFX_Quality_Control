@@ -1,0 +1,6 @@
+{
+  "name": "QUALITY CONTROL of RFX VISUAL",
+  "description": "Aplikasi Jurnal Catatan Harian modern dengan pengunci sidik jari, analitik progres mingguan, kalender, Turso db sync, dan integrasi foto Google Drive.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

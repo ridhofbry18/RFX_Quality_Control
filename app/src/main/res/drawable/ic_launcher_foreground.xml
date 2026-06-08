@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- Outer Lens decorative glowing ring -->
+    <path
+        android:strokeColor="#1AFF0000"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M 54 18 A 36 36 0 1 1 53.9 18" />
+        
+    <path
+        android:strokeColor="#33DC2626"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:pathData="M 54 22 A 32 32 0 1 1 53.9 22" />
+
+    <!-- Film Reel 1 (Left top) -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2"
+        android:fillColor="#00000000"
+        android:pathData="M 40,36 a 7,7 0 1,1 0.1,0" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M 38.5,36 a 1.5,1.5 0 1,1 0.1,0" />
+
+    <!-- Film Reel 2 (Right top) -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2"
+        android:fillColor="#00000000"
+        android:pathData="M 54,36 a 7,7 0 1,1 0.1,0" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M 52.5,36 a 1.5,1.5 0 1,1 0.1,0" />
+
+    <!-- Main Camera Body Box -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M34,43h28v22h-28z"/>
+
+    <!-- Lens Cone (Right side) in RFX Red Accent -->
+    <path
+        android:fillColor="#DC2626"
+        android:pathData="M64,49l12,-7v22l-12,-7z"/>
+
+    <!-- Recording status light inside camera body -->
+    <path
+        android:fillColor="#DC2626"
+        android:pathData="M41,54 a 2.5,2.5 0 1,1 0.1,0"/>
+
+</vector>
