@@ -32,18 +32,7 @@ android {
     }
     create("debugConfig") {
       val keystoreFile = file("${rootDir}/debug.keystore")
-      if (!keystoreFile.exists()) {
-        val base64File = file("${rootDir}/debug.keystore.base64")
-        if (base64File.exists()) {
-          try {
-            val base64Text = base64File.readText().trim()
-            val decodedBytes = Base64.getDecoder().decode(base64Text)
-            keystoreFile.writeBytes(decodedBytes)
-          } catch (e: Exception) {
-            project.logger.warn("Gagal mendekode debug.keystore.base64: ${e.message}")
-          }
-        }
-      }
+      ensureDebugKeystoreExists(rootDir, keystoreFile, project.logger)
       storeFile = keystoreFile
       storePassword = "android"
       keyAlias = "androiddebugkey"
@@ -135,4 +124,50 @@ dependencies {
   debugImplementation(libs.androidx.compose.ui.tooling)
   "ksp"(libs.androidx.room.compiler)
   "ksp"(libs.moshi.kotlin.codegen)
+}
+
+fun ensureDebugKeystoreExists(rootDir: File, keystoreFile: File, logger: org.gradle.api.logging.Logger) {
+  if (keystoreFile.exists()) return
+
+  // 1. Coba dekode dari base64 jika ada
+  val base64File = File(rootDir, "debug.keystore.base64")
+  if (base64File.exists()) {
+    try {
+      val base64Text = base64File.readText().trim()
+      val decodedBytes = Base64.getDecoder().decode(base64Text)
+      keystoreFile.writeBytes(decodedBytes)
+      logger.lifecycle("-> debug.keystore berhasil direstorasi dari base64.")
+      return
+    } catch (e: Exception) {
+      logger.warn("-> Gagal mendekode debug.keystore.base64: ${e.message}")
+    }
+  }
+
+  // 2. Jika gagal atau tidak ada base64, buat otomatis menggunakan keytool
+  try {
+    logger.lifecycle("-> debug.keystore tidak ditemukan. Membuat keystore baru menggunakan keytool...")
+    val pb = ProcessBuilder(
+      "keytool", "-genkeypair",
+      "-v",
+      "-keystore", keystoreFile.absolutePath,
+      "-storepass", "android",
+      "-alias", "androiddebugkey",
+      "-keypass", "android",
+      "-keyalg", "RSA",
+      "-keysize", "2048",
+      "-validity", "10000",
+      "-dname", "CN=Android Debug,O=Android,C=US"
+    )
+    pb.redirectErrorStream(true)
+    val process = pb.start()
+    val output = process.inputStream.bufferedReader().readText()
+    val exitCode = process.waitFor()
+    if (exitCode == 0) {
+      logger.lifecycle("-> debug.keystore berhasil dibuat otomatis!")
+    } else {
+      logger.warn("-> Gagal membuat keystore dengan keytool (exit code $exitCode): $output")
+    }
+  } catch (e: Exception) {
+    logger.warn("-> Gagal menjalankan keytool untuk membuat debug.keystore: ${e.message}")
+  }
 }

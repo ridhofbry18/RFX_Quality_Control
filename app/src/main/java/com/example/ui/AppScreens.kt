@@ -1135,11 +1135,11 @@ fun WriteDiaryModal(
                     fontWeight = FontWeight.Bold
                 )
                 
-                Row(
+                LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    listOf("Netral", "Senang", "Sedih", "Fokus", "Lelah").forEach { mood ->
+                    items(listOf("Netral", "Senang", "Sedih", "Fokus", "Lelah")) { mood ->
                         val active = selectedMood == mood
                         Box(
                             modifier = Modifier
@@ -1147,13 +1147,15 @@ fun WriteDiaryModal(
                                 .background(if (active) RfxRedAccent else (if (isDarkMode) CoreDarkSurfaceElevated else CoreLightSurfaceElevated))
                                 .border(1.dp, if (active) RfxRedAccent else (if (isDarkMode) CoreDarkBorder else CoreLightBorder), RoundedCornerShape(10.dp))
                                 .clickable { selectedMood = mood }
-                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
                         ) {
-                            Text(
-                                mood,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = if (active) Color.White else MaterialTheme.colorScheme.onBackground
-                            )
+            Text(
+                mood,
+                style = MaterialTheme.typography.labelSmall,
+                color = if (active) Color.White else MaterialTheme.colorScheme.onBackground,
+                maxLines = 1,
+                softWrap = false
+            )
                         }
                     }
                 }

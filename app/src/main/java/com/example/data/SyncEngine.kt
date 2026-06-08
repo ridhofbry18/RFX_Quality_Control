@@ -56,6 +56,45 @@ object SyncEngine {
         }
     }
 
+    private fun toHranaValue(value: Any?): JSONObject {
+        val json = JSONObject()
+        if (value == null) {
+            json.put("type", "null")
+        } else {
+            when (value) {
+                is Long, is Int, is Short, is Byte -> {
+                    json.put("type", "integer")
+                    json.put("value", value.toString())
+                }
+                is Double, is Float -> {
+                    json.put("type", "float")
+                    json.put("value", value.toDouble())
+                }
+                is Boolean -> {
+                    json.put("type", "integer")
+                    json.put("value", if (value) "1" else "0")
+                }
+                else -> {
+                    json.put("type", "text")
+                    json.put("value", value.toString())
+                }
+            }
+        }
+        return json
+    }
+
+    private suspend fun getPipelineEndpoint(dbUrl: String): String? {
+        var httpUrl = dbUrl.trim()
+        if (httpUrl.isEmpty() || httpUrl.contains("your-turso-database-url")) return null
+        if (httpUrl.startsWith("libsql://")) {
+            httpUrl = httpUrl.replace("libsql://", "https://")
+        } else if (!httpUrl.startsWith("http://") && !httpUrl.startsWith("https://")) {
+            httpUrl = "https://$httpUrl"
+        }
+        val cleanUrl = if (httpUrl.endsWith("/")) httpUrl else "$httpUrl/"
+        return "${cleanUrl}v2/pipeline"
+    }
+
     /**
      * Mensinkronkan data Catatan Harian (DiaryEntry) ke database Turso.
      * Menggunakan Turso SQL REST API (libSQL pipeline / execute endpoint).
@@ -63,50 +102,37 @@ object SyncEngine {
     suspend fun syncDiaryToTurso(context: Context, entry: DiaryEntry): Boolean = withContext(Dispatchers.IO) {
         val dbUrl = getPreference(context, "turso_db_url", BuildConfig.TURSO_DB_URL)
         val token = getPreference(context, "turso_token", BuildConfig.TURSO_AUTH_TOKEN)
+        val endpoint = getPipelineEndpoint(dbUrl)
 
-        // Cek apakah konfigurasi default/dummy
-        if (dbUrl.contains("your-turso-database-url") || token.contains("your_turso_token") || dbUrl.isEmpty() || token.isEmpty()) {
+        if (endpoint == null || token.isEmpty() || token.contains("your_turso_token")) {
             Log.w(TAG, "Turso DB Url atau Token belum diset dengan benar. Sinkronisasi disimulasikan.")
-            return@withContext true // Bekerja secara luring (offline-first)
+            return@withContext true
         }
 
         try {
-            // Kita gunakan Turso `/v2/pipeline` atau standard `/` executables rest api.
-            // Format URL Turso biasanya: "libsql://my-db.turso.io", ganti "libsql://" dengan "https://"
-            val httpUrl = dbUrl.replace("libsql://", "https://")
-            val cleanUrl = if (httpUrl.endsWith("/")) httpUrl else "$httpUrl/"
-            val endpoint = "${cleanUrl}v2/pipeline"
-
-            // Buat batch SQL query dalam format JSON Pipeline Turso
-            // Contoh batch pembuat tabel jika belum ada dan insert query
             val requestBodyJson = JSONObject().apply {
                 put("requests", JSONArray().apply {
-                    // Request 1: Inisialisasi tabel jika belum ada
                     put(JSONObject().apply {
                         put("type", "execute")
                         put("stmt", JSONObject().apply {
                             put("sql", "CREATE TABLE IF NOT EXISTS diary_entries (id INTEGER PRIMARY KEY, title TEXT, content TEXT, date INTEGER, imageUri TEXT, mood TEXT)")
                         })
                     })
-                    // Request 2: Mengganti/Insert data ke Cloud
                     put(JSONObject().apply {
                         put("type", "execute")
                         put("stmt", JSONObject().apply {
                             put("sql", "INSERT OR REPLACE INTO diary_entries (id, title, content, date, imageUri, mood) VALUES (?, ?, ?, ?, ?, ?)")
                             put("args", JSONArray().apply {
-                                put(entry.id)
-                                put(entry.title)
-                                put(entry.content)
-                                put(entry.date)
-                                put(entry.imageUri ?: "")
-                                put(entry.mood)
+                                put(toHranaValue(entry.id))
+                                put(toHranaValue(entry.title))
+                                put(toHranaValue(entry.content))
+                                put(toHranaValue(entry.date))
+                                put(toHranaValue(entry.imageUri))
+                                put(toHranaValue(entry.mood))
                             })
                         })
                     })
-                    // Request 3: Selesai
-                    put(JSONObject().apply {
-                        put("type", "close")
-                    })
+                    put(JSONObject().apply { put("type", "close") })
                 })
             }
 
@@ -123,7 +149,79 @@ object SyncEngine {
                     Log.d(TAG, "Sinkronisasi ke Turso berhasil untuk ID: ${entry.id}")
                     return@withContext true
                 } else {
-                    Log.e(TAG, "Gagal mensinkronkan ke Turso. Kode: ${response.code}, Pesan: ${response.message}")
+                    Log.e(TAG, "Gagal mensinkronkan ke Turso. Kode: ${response.code}, Response: ${response.body?.string()}")
+                    return@withContext false
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Gagal terhubung ke Turso Cloud", e)
+            return@withContext false
+        }
+    }
+
+    /**
+     * Mensinkronkan data peliharaan virtual ke database Turso.
+     */
+    suspend fun syncPetToTurso(
+        context: Context,
+        stage: Int,
+        hunger: Int,
+        cleanliness: Int,
+        happiness: Int,
+        energy: Int,
+        hasPoop: Boolean,
+        playCount: Int
+    ): Boolean = withContext(Dispatchers.IO) {
+        val dbUrl = getPreference(context, "turso_db_url", BuildConfig.TURSO_DB_URL)
+        val token = getPreference(context, "turso_token", BuildConfig.TURSO_AUTH_TOKEN)
+        val endpoint = getPipelineEndpoint(dbUrl)
+
+        if (endpoint == null || token.isEmpty() || token.contains("your_turso_token")) {
+            return@withContext true
+        }
+
+        try {
+            val requestBodyJson = JSONObject().apply {
+                put("requests", JSONArray().apply {
+                    put(JSONObject().apply {
+                        put("type", "execute")
+                        put("stmt", JSONObject().apply {
+                            put("sql", "CREATE TABLE IF NOT EXISTS pet_status (id INTEGER PRIMARY KEY, stage INTEGER, hunger INTEGER, cleanliness INTEGER, happiness INTEGER, energy INTEGER, hasPoop INTEGER, playCount INTEGER)")
+                        })
+                    })
+                    put(JSONObject().apply {
+                        put("type", "execute")
+                        put("stmt", JSONObject().apply {
+                            put("sql", "INSERT OR REPLACE INTO pet_status (id, stage, hunger, cleanliness, happiness, energy, hasPoop, playCount) VALUES (1, ?, ?, ?, ?, ?, ?, ?)")
+                            put("args", JSONArray().apply {
+                                put(toHranaValue(stage))
+                                put(toHranaValue(hunger))
+                                put(toHranaValue(cleanliness))
+                                put(toHranaValue(happiness))
+                                put(toHranaValue(energy))
+                                put(toHranaValue(if (hasPoop) 1 else 0))
+                                put(toHranaValue(playCount))
+                            })
+                        })
+                    })
+                    put(JSONObject().apply { put("type", "close") })
+                })
+            }
+
+            val requestBody = requestBodyJson.toString().toRequestBody(JSON_MEDIA_TYPE)
+            val request = Request.Builder()
+                .url(endpoint)
+                .header("Authorization", "Bearer $token")
+                .header("Content-Type", "application/json")
+                .post(requestBody)
+                .build()
+
+            client.newCall(request).execute().use { response ->
+                if (response.isSuccessful) {
+                    Log.d(TAG, "Sinkronisasi Pet ke Turso berhasil")
+                    return@withContext true
+                } else {
+                    Log.e(TAG, "Gagal mensinkronkan Pet ke Turso. Kode: ${response.code}")
                     return@withContext false
                 }
             }
@@ -142,7 +240,6 @@ object SyncEngine {
         
         if (oauthToken.isNullOrEmpty() || oauthToken.contains("default") || oauthToken == "MOCK_TOKEN") {
             Log.w(TAG, "OAuth Token Google Drive kosong atau default. Menggunakan penyimpanan Cloud simulasi.")
-            // Kembalikan URL cloud tiruan untuk mockup visual yang bagus
             return@withContext "https://images.unsplash.com/photo-1506784983877-45594efa4cbe?auto=format&fit=crop&q=80&w=600"
         }
 
@@ -200,7 +297,6 @@ object SyncEngine {
                     val fileId = jsonResponse.optString("id")
                     
                     Log.d(TAG, "Foto berhasil diunggah ke Google Drive. ID: $fileId")
-                    // Mengembalikan URL publik file Drive atau API viewer Url
                     return@withContext "https://lh3.googleusercontent.com/d/$fileId"
                 } else {
                     Log.e(TAG, "Gagal mengunggah ke Google Drive. Kode: ${response.code}, Response: ${response.body?.string()}")

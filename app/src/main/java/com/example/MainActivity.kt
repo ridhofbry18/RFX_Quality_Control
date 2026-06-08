@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -77,6 +78,13 @@ class MainActivity : FragmentActivity() {
                                     label = { Text("Setelan") },
                                     modifier = Modifier.testTag("nav_setelan")
                                 )
+                                NavigationBarItem(
+                                    selected = currentTab == "game",
+                                    onClick = { viewModel.changeTab("game") },
+                                    icon = { Icon(Icons.Filled.PlayArrow, contentDescription = "Game") },
+                                    label = { Text("Game") },
+                                    modifier = Modifier.testTag("nav_game")
+                                )
                             }
                         }
                     ) { innerPadding ->
@@ -91,6 +99,7 @@ class MainActivity : FragmentActivity() {
                                 "catatan" -> CatatanScreen(viewModel = viewModel, isDarkMode = isDarkMode)
                                 "proyek" -> ProyekScreen(viewModel = viewModel, isDarkMode = isDarkMode)
                                 "setelan" -> SetelanScreen(viewModel = viewModel, isDarkMode = isDarkMode)
+                                "game" -> GameScreen(viewModel = viewModel, isDarkMode = isDarkMode)
                             }
                         }
                     }
@@ -101,7 +110,8 @@ class MainActivity : FragmentActivity() {
 
     override fun onPause() {
         super.onPause()
-        // Kunci kembali aplikasi demi proteksi keamanan tinggi saat diminimalisasi
-        viewModel.lockApp()
+        // Dihapus untuk sementara agar tidak mengganggu sistem pemilih file (Photo Picker).
+        // (Jika mau auto-lock, tambahkan logic pengecekan out-of-app vs buka picker)
+        // viewModel.lockApp()
     }
 }
